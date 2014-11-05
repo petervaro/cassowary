@@ -3,6 +3,7 @@
 
 /* Use modules of the std crate */
 use std::fmt;
+use std::num::{Num, zero};
 use std::sync::atomic::{AtomicUint, SeqCst, INIT_ATOMIC_UINT};
 
 /* Module level constants */
@@ -10,94 +11,102 @@ static ID_FACTORY: AtomicUint = INIT_ATOMIC_UINT;
 
 
 /*----------------------------------------------------------------------------*/
-trait AbstractVariable
+/* Base Trait */
+pub trait Variable<T: Num+Copy+fmt::Show>
 {
-    fn new(name: &str,
-           prefix: &str) -> Self;
+    fn new(name  : Option<&str>,
+           value : Option<T>) -> Self;
+
+    fn set(&self,
+           value: Option<T>) -> &Self;
 }
 
 
 
 /*----------------------------------------------------------------------------*/
-pub struct Variable
+/* Helper functions */
+#[inline]
+fn get_var_name(name: Option<&str>) -> String
 {
-    id: uint,
-    name: String,
+    match name
+    {
+        Some(text) => text.to_string(),
+        None       => format!("var{}", ID_FACTORY.fetch_add(1u, SeqCst)),
+    }
 }
 
-
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-impl AbstractVariable for Variable
+#[inline]
+fn get_num_value<T: Num+Copy+fmt::Show>(value: Option<T>) -> T
 {
-    fn new(name: &str,
-           prefix: &str) -> Variable
+    match value
     {
-        /* Get new id */
-        let id = ID_FACTORY.fetch_add(1u, SeqCst);
-        /* Create and return a new object */
-        Variable
-        {
-            id: id,
-            name: format!("v{}", id),
-        }
+        Some(number) => number,
+        None         => zero(),
     }
 }
 
 
+
+/*----------------------------------------------------------------------------*/
+/* Base Type */
+pub struct GenericVariable<T: Num+Copy+fmt::Show>
+{
+    name  : String,
+    value : T,
+}
+/*
+pub struct DummyVariable<T>
+{
+    name  : &String,
+    value : T,
+}
+
+pub struct ObjectiveVariable<T>
+{
+    name  : &String,
+    value : T,
+}
+
+pub struct SlackVariable<T>
+{
+    name  : &String,
+    value : T,
+}
+*/
+
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-impl fmt::Show for Variable
+impl<T: Num+Copy+fmt::Show> Variable<T> for GenericVariable<T>
+{
+    fn new(name  : Option<&str>,
+           value : Option<T>) -> GenericVariable<T>
+    {
+        GenericVariable
+        {
+            name  : get_var_name(name),
+            value : get_num_value(value),
+        }
+    }
+
+    /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+    fn set(&self,
+           value: Option<T>) -> &GenericVariable<T>
+    {
+        self.value = match value
+        {
+            Some(num) => num,
+            None      => zero(),
+        };
+        self
+    }
+}
+
+/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
+impl<T: Num+Copy+fmt::Show> fmt::Show for GenericVariable<T>
 {
     fn fmt(&self,
            f: &mut fmt::Formatter) -> fmt::Result
     {
-        write!(f, "[{}]", self.name)
+        write!(f, "[{}:{}]", self.name, self.value)
     }
 }
-
-
-/*
-/*----------------------------------------------------------------------------*/
-struct DummyVariable
-{
-    hash_code: uint,
-    _name: String,
-}
-
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-impl AbstractVariable for DummyVariable
-{
-
-}
-
-
-/*----------------------------------------------------------------------------*/
-struct ObjectiveVariable
-{
-    hash_code: uint,
-    _name: String,
-}
-
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-impl AbstractVariable for ObjectiveVariable
-{
-
-}
-
-
-
-/*----------------------------------------------------------------------------*/
-struct SlackVariable
-{
-    hash_code: uint,
-    _name: String,
-}
-
-
-/*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-impl AbstractVariable for SlackVariable
-{
-
-}
-*/
